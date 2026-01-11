@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Timers 6h / 8h</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Timer de Ação (6h e 8h)</h1>
+
+      <section class="timer" id="timer-6h">
+        <h2>Intervalo: 6 horas</h2>
+        <div class="row">
+          <button class="mark-btn"><span class="btn-lock">🔓</span>Marcar ação <span class="btn-clock"></span></button>
+          <button class="reset-btn" title="Zerar timer">Resetar</button>
+          <div class="info">
+            <div>Última marcação: <span class="last">—</span></div>
+            <div>Tempo desde marcação: <span class="elapsed">—</span></div>
+            <div>Próxima em: <span class="remaining">—</span></div>
+            <div class="lock-info"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="timer" id="timer-8h">
+        <h2>Intervalo: 8 horas</h2>
+        <div class="row">
+          <button class="mark-btn"><span class="btn-lock">🔓</span>Marcar ação <span class="btn-clock"></span></button>
+          <button class="reset-btn" title="Zerar timer">Resetar</button>
+          <div class="info">
+            <div>Última marcação: <span class="last">—</span></div>
+            <div>Tempo desde marcação: <span class="elapsed">—</span></div>
+            <div>Próxima em: <span class="remaining">—</span></div>
+            <div class="lock-info"></div>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        <small>O botão fica bloqueado por 3 minutos após marcar para evitar múltiplas marcações.</small>
+      </footer>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
