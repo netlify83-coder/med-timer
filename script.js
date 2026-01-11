@@ -2,8 +2,9 @@ class TimerWidget {
   constructor(container, hours) {
     this.container = container;
     this.hours = hours;
-    this.key = `timer-${hours}h-ts`;
-    this.lockKey = `timer-${hours}h-lock`;
+    this.intervalMs = hours * 60 * 60 * 1000;
+
+    this.ref = doc(db, "timers", `${hours}h`);
 
     this.btn = container.querySelector('.mark-btn');
     this.lastEl = container.querySelector('.last');
@@ -14,55 +15,47 @@ class TimerWidget {
     this.btnLock = container.querySelector('.btn-lock');
     this.resetBtn = container.querySelector('.reset-btn');
 
-    this.intervalMs = hours * 60 * 60 * 1000;
-
     this.ts = null;
     this.lockUntil = null;
 
-    this.load();
     this.bind();
-    this.startTicker();
+    this.load().then(() => this.startTicker());
   }
-
 
   bind(){
     this.btn.addEventListener('click', ()=> this.mark());
     if(this.resetBtn) this.resetBtn.addEventListener('click', ()=> this.reset());
   }
 
-  reset(){
-    this.ts = null;
-    this.save();
-    this.lockUntil = null;
-    localStorage.removeItem(this.lockKey);
-    this.updateButtons();
-    this.tick();
-  }
-
-  load(){
-    const raw = localStorage.getItem(this.key);
-    if(raw) this.ts = parseInt(raw,10);
-    const lockRaw = localStorage.getItem(this.lockKey);
-    if(lockRaw) this.lockUntil = parseInt(lockRaw,10);
-    if(this.lockUntil && Date.now() >= this.lockUntil){
-      this.lockUntil = null;
-      localStorage.removeItem(this.lockKey);
+  async load(){
+    const snap = await getDoc(this.ref);
+    if(snap.exists()){
+      const data = snap.data();
+      this.ts = data.ts || null;
+      this.lockUntil = data.lockUntil || null;
     }
     this.updateButtons();
   }
 
-  save(){
-    if(this.ts) localStorage.setItem(this.key, String(this.ts));
-    else localStorage.removeItem(this.key);
+  async save(){
+    await setDoc(this.ref, {
+      ts: this.ts,
+      lockUntil: this.lockUntil
+    });
   }
 
-  mark(){
+  async mark(){
     this.ts = Date.now();
-    this.save();
-
-    // bloquear botão por 3 minutos para evitar múltiplas marcações
     this.lockUntil = Date.now() + 3*60*1000;
-    localStorage.setItem(this.lockKey, String(this.lockUntil));
+    await this.save();
+    this.updateButtons();
+    this.tick();
+  }
+
+  async reset(){
+    this.ts = null;
+    this.lockUntil = null;
+    await this.save();
     this.updateButtons();
     this.tick();
   }
@@ -73,7 +66,6 @@ class TimerWidget {
     } else {
       this.btn.disabled = false;
       this.lockUntil = null;
-      localStorage.removeItem(this.lockKey);
     }
   }
 
@@ -91,20 +83,12 @@ class TimerWidget {
       this.elapsedEl.textContent = '—';
       this.remainingEl.textContent = '—';
     } else {
-      const last = new Date(this.ts);
-      this.lastEl.textContent = last.toLocaleTimeString();
+      this.lastEl.textContent = new Date(this.ts).toLocaleTimeString();
+      this.elapsedEl.textContent = formatMs(now - this.ts);
 
-      const elapsedMs = now - this.ts;
-      this.elapsedEl.textContent = formatMs(elapsedMs);
-
-      const nextDue = this.ts + this.intervalMs;
-      const remainingMs = nextDue - now;
-      if(remainingMs >= 0){
-        this.remainingEl.textContent = formatMs(remainingMs);
-      } else {
-        // tempo já passou — mostrar tempo desde venceu
-        this.remainingEl.textContent = `Vencido ${formatMs(Math.abs(remainingMs))}`;
-      }
+      const remainingMs = (this.ts + this.intervalMs) - now;
+      this.remainingEl.textContent =
+        remainingMs >= 0 ? formatMs(remainingMs) : `Vencido ${formatMs(Math.abs(remainingMs))}`;
     }
 
     if(this.lockUntil){
@@ -114,11 +98,9 @@ class TimerWidget {
       this.lockInfoEl.textContent = '';
     }
 
-    // atualizar relógio no botão e estado visual de bloqueio
     if(this.btnClock){
       if(this.lockUntil && Date.now() < this.lockUntil){
-        const left = Math.max(0, this.lockUntil - now);
-        this.btnClock.textContent = ` ${formatMs(left)}`;
+        this.btnClock.textContent = ` ${formatMs(this.lockUntil - now)}`;
         if(this.btnLock) this.btnLock.textContent = '🔒';
         this.btn.classList.add('locked');
       } else {
@@ -131,26 +113,16 @@ class TimerWidget {
 }
 
 function pad(n){return n.toString().padStart(2,'0');}
-
 function formatMs(ms){
-  const total = Math.floor(ms/1000);
-  const s = total % 60;
-  const m = Math.floor(total/60) % 60;
-  const h = Math.floor(total/3600);
-  return `${pad(h)}:${pad(m)}:${pad(s)}`;
+  const t = Math.floor(ms/1000);
+  return `${pad(Math.floor(t/3600))}:${pad(Math.floor(t/60)%60)}:${pad(t%60)}`;
+}
+function formatCurrentTime(){
+  const d = new Date();
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
 document.addEventListener('DOMContentLoaded', ()=>{
-  const c6 = document.getElementById('timer-6h');
-  const c8 = document.getElementById('timer-8h');
-  new TimerWidget(c6, 6);
-  new TimerWidget(c8, 8);
+  new TimerWidget(document.getElementById('timer-6h'), 6);
+  new TimerWidget(document.getElementById('timer-8h'), 8);
 });
-
-function formatCurrentTime(){
-  const d = new Date();
-  const h = pad(d.getHours());
-  const m = pad(d.getMinutes());
-  const s = pad(d.getSeconds());
-  return `${h}:${m}:${s}`;
-}
